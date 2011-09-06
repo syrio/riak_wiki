@@ -31,7 +31,7 @@ Secondary Indexes are a new feature supported in Riak 1.0 that allow users to cr
     </tr>
     <tr>
         <td>Coverage Query</td>
-        <td>R is used to GET data fed into query with a single node coordinating</td>
+        <td><!-- Need info --</td>
         <td>1 search vnode per a term queried</td>
         <td>1/N of all KV vnodes per a request</td>
     </tr>
@@ -43,7 +43,7 @@ Secondary Indexes are a new feature supported in Riak 1.0 that allow users to cr
     </tr>
     <tr>
         <td>Extraction</td>
-        <td>N/A</td>
+        <td>>Map phases can be used to extract data for later Map and Reduce phase</td>
         <td>Either one of the provided analyzers: Whitespace, Standard, Integer, or No-Op, two Java Analyzers, or a Custom Analyzer</td>
         <td>Done by user before putting data. Indexed values are submitted as metadata</td>
     </tr>
@@ -51,7 +51,13 @@ Secondary Indexes are a new feature supported in Riak 1.0 that allow users to cr
         <td>Anti-Entropy</td>
         <td>N/A</td>
         <td>No anti-entropy features. If a search partition is lost, the entire search index should be rebuilt</td>
-        <td>Anti-entropy is carried over from kv. If a partition is lost, secondary indexes will be rebuilt along side the kv data</td>
+        <td>Anti-entropy is carried over from kv; if a partition is lost, secondary indexes will be rebuilt along side the kv data</td>
+    </tr>
+    <tr>
+        <td>Limitations</td>
+        <td>MapReduce operations are performed in memory</td>
+        <td>A covering query could hit all nodes when lots of terms are used</td>
+        <td>Only available with the LevelDB backend</td>
     </tr>
     <tr>
         <td>Good Use Cases</td>
@@ -62,7 +68,7 @@ Secondary Indexes are a new feature supported in Riak 1.0 that allow users to cr
     <tr>
         <td>Poor Use Cases</td>
         <td>Analyzing every object in a bucket</td>
-        <td>Search for common terms in documents.</td>
-        <td>Retrieving all objects tagged with a particular term</td>
+        <td>Searching for common terms in documents</td>
+        <td><!-- Need example --></td>
     </tr>
 </table>
