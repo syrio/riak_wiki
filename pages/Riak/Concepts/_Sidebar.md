@@ -16,6 +16,7 @@
   * [[Indexing|Riak Search - Indexing]]
   * [[Querying|Riak Search - Querying]]
   * [[Riak KV Integration|Riak Search - Indexing and Querying Riak KV Data]]
+* [[MapReduce vs. Search vs. Secondary Indexes|MapReduce Search 2i Comparison]]
 * [[Comparisons|Riak Comparisons]]
   * [[Cassandra|Riak Compared to Cassandra]]
   * [[MongoDB|Riak Compared to MongoDB]]
