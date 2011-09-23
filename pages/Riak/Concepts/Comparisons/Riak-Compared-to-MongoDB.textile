@@ -39,12 +39,16 @@ From the Mongo Docs: "Replica Sets are MongoDB's new method for replication. The
 
 Replica sets are a collection of MongoDB servers (nodes) that form a cluster. In every set there must be a primary node that processes all the writes and reads performed against that replica sets. Reads can perform against one of the set secondary nodes, but only if the client issuing the reads agreed that this is OK.
 Different nodes that are part of a Replica Set can have priorities (specific priorities since v2.0) as to who will be voted (all of the set nodes participate in the vote) as the primary node if the current primary goes down. The voting process can take 10-30 seconds until the old primary is considered down and a new primary is elected by the others.
+If a replica node goes down, replicating the data from the surviving nodes in the set into a new replacement node (re-replication) can be a long and intensive process that will introduce drag to one of the surviving nodes until it is completed.
 Tagging is a new feature in v2.0, and it allows the client to control where data should be written to, by using any tagging system, either tagging a certain piece of data with the actual IP address of the node that the client wants to use, or by using a general role string ("a fast server close to the app server") that will later be defined by the admin to be, say, a dedicated server in NYC.
 Tagging also introduced the special Majority tag. Tagging writes with the majority tags enable a basic quorum like support for writes, allowing the client to ask that a write command will not return until the written data has propagated successfully into the majority of the nodes in a given Replica Set.
 
 While Master/Slave replication is still supported, Replica sets adds auto failover so it's expected that most users will migrate to this configuration. However, in certain use cases traditional M/S is more appropriate and will still be supported.
 
-To enable horizontal scaling, Mongo uses a process known as "sharding," which involves designating certain server to hold certain chunks of the data as the data set grows. 
+To enable horizontal scaling, Mongo uses a process known as "sharding," which involves designating a certain server to hold certain chunks of the data as the data set grows. Designated servers are called "shards" and each shard is usually part of it's own replica set. This provides availability for the shard's data chunks, but it also doesn't utilize the entire resources of the cluster since sets are restricted to only one shard.
+Data chunks are automatically split and distributed between shards when they reach the size of around hundreds of megabytes, based on the configuration of the number of chunks each shard server should handle. Even so, it is possible that all of the shards in the cluster will have the same amount of chunks, but the overall data chunks size will be different, causing imbalances between the shards. It is possible to split manually.
+The process of data chunks distribution and reallocation between shards isdependent on the sharding configuration server(s). If any one of the configuration servers fails, data reallocation and distribution is halted as the cluster's meta becomes read-only. Since this is the mechanism that deals with write hotspots, this could further hinder performance if there is already an existing unbalance between the shards.
+
 
 [[http://www.mongodb.org/display/DOCS/Sharding]]
 [[http://www.mongodb.org/display/DOCS/Sharding+Introduction]]
@@ -64,6 +68,7 @@ h2. Backups
 In Riak, backups (hot and cold) can be performed per-node, or whole-cluster.
 When using Bitcask (Riak default storage engine), you can perform a per-node backup simply by doing a filesystem backup of the Bitcask storage data directory. Restoring the node content is done by simply replacing the content of the data directory with the filesystem backup.
 If you are using a different storage engine (such as Innostore) or would like to perform a whole-cluster backup, then this is done using the riak-admin tool.
+The Riak Enterprise Edition adds the ability to perform replication between multiple data-centers located in different physical locations, allowing the creation of entire hot backup clusters.
 
 MongoDB offers several ways to perform backups, including hot backups. 
 If journaling is enabled (v1.7.5+) it is possible to take a snapshot of the entire DB directory, while the DB is running. Other options are to use the Mongodump tool, use a dedicated replicated slave or perform a cold backup by shutting down or write locking the instance we want to backup.
@@ -91,11 +96,12 @@ _[[http://www.mongodb.org/display/DOCS/Data+Types+and+Conventions]]__[[http://ww
 
 h2. Queries and Distributed Operations
 
-Riak's query interface is entirely key-value, link-walking, or [[MapReduce]]. Riak has no concept of secondary indexes because it does not know the internal structure of the  stored data.
+Riak's has several query interfaces and it allows you to perform queries using Key-Value, Link-Walking, [[MapReduce]] and Secondary Indexes. Up until v1.0, Riak had no concept of secondary indexes because it was not aware of the internal structure of the stored data, but v1.0 introduced tagging of Riak data objects with index metadata and the possibility to retrieve the data by querying the tagged index.
+Secondary Indexes in v1.0 are limited to single-index queries.
 
 _[[http://wiki.basho.com/MapReduce.html|http://wiki.basho.com/MapReduce.html]]_
 
-MongoDB has a query interface that has some similarities to relational databases, including secondary indexes that can be derived from the stored documents. MongoDB also has a facility for performing MapReduce queries.
+MongoDB has a query interface that has some similarities to relational databases, including secondary indexes that can be derived from the stored documents, cover indexes (only return indexed fields data), sparse indexes (only include documents that contain a given field) and compound indexes (index data based on two or more fields). MongoDB also has a facility for performing MapReduce queries, including incremental MapReduce.
 
 [[http://www.mongodb.org/display/DOCS/Indexes]]
 [[http://www.mongodb.org/display/DOCS/Querying]]
@@ -113,7 +119,7 @@ Mongo uses a "last one wins" technique for conflict resolution.
 
 h2. Compacting Support
 
-Riak runs periodic merges on all the non-active data files to compact the stored data space. Since merges could be performance costly, especially in high-write scenario, periodic merges can be "windowed" to only run at specific times (perhaps when cluster load is low).
+When using Bitcask, Riak runs periodic merges on all the non-active data files to compact the stored data space. Since merges could be performance costly, especially in high-write scenario, periodic merges can be "windowed" to only run at specific times (perhaps when cluster load is low).
 
 MongoDB compact command (v1.9+) will compact and defragment a specific collection, freeing up space in the DB as a result. The command blocks the DB, not allowing any other DB operation to run.
 In addition, MongoDB Capped Collections provide the ability to store data auto expiring FIFO queue collection, making it possible to compact a collection to a well-known size by throwing replacing old records with new ones after the collection reaches a certain size limit. Capped collection storage can't fragment so they allow maximum utilization of storage space if configured appropriately.
@@ -133,7 +139,7 @@ As of v2.0, MongoDB doesn't support data compression.
 
 h2. Geospatial Indexing
 
-Riak is content-agnostic and doesn't utilize any specific query mechanisms aside from the newly introduced Secondary Indexes in the upcoming v1.0.
+Riak is content-agnostic and doesn't utilize any specific query mechanisms aside from the newly introduced Secondary Indexes in v1.0.
 
 MongoDB can store location-aware documents, allowing the user to query for documents based on their exact location or their proximity to a given 2D point or to a specified territory defined by a polygon. Since version 2.0, documents can have multiple locations defined.
 
@@ -151,6 +157,6 @@ MongoDB uses a custom protocol with BSON as the interchange format, and [[10gen|
 
 h2. Cloud Hosting
 
-[[Canvas Hosting||http://canvashosting.com/]] provides a dedicated Riak hosting [[solution|http://canvashosting.com/solutions/riak/]].
+[[Canvas Hosting||http://canvashosting.com/]] provides a dedicated [[Riak hosting solution|http://canvashosting.com/solutions/riak/]] and [[Joyent|http://www.joyent.com]] offers their [[SmartMachine solution|http://www.joyentcloud.com/products/purpose-built-appliances/riak-smartmachine/]] as well.
 
 [[MongoHQ|https://mongohq.com/home]], [[MongoLab|https://mongolab.com/home/]] and [[MongoMachine|https://www.mongomachine.com/]] offers different hosting solutions for MongoDB.
